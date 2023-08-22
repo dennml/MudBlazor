@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Bunit;
 using FluentAssertions;
+using FluentValidation;
 using Microsoft.AspNetCore.Components.Web;
+using MudBlazor.Docs.Examples;
 using MudBlazor.UnitTests.TestComponents;
 using NUnit.Framework;
 
@@ -35,7 +37,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest1()
         {
             var comp = Context.RenderComponent<RadioGroupTest1>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var group = comp.FindComponent<MudRadioGroup<string>>();
             var inputs = comp.FindAll("input").ToArray();
@@ -79,7 +80,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest2()
         {
             var comp = Context.RenderComponent<RadioGroupTest2>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var group = comp.FindComponent<MudRadioGroup<string>>();
             var spans = comp.FindAll("span.mud-radio-icons").ToArray();
@@ -94,7 +94,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest3()
         {
             var comp = Context.RenderComponent<RadioGroupTest3>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var groups = comp.FindComponents<MudRadioGroup<string>>();
             var inputs = comp.FindAll("input").ToArray();
@@ -130,7 +129,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest4()
         {
             var comp = Context.RenderComponent<RadioGroupTest4>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var groups = comp.FindComponents<MudRadioGroup<string>>();
             var inputs = comp.FindAll("input").ToArray();
@@ -166,7 +164,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest5()
         {
             var comp = Context.RenderComponent<RadioGroupTest5>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var group = comp.FindComponent<MudRadioGroup<string>>();
             var inputs = comp.FindAll("input").ToArray();
@@ -196,7 +193,6 @@ namespace MudBlazor.UnitTests.Components
         public void RadioGroupTest6()
         {
             var comp = Context.RenderComponent<RadioGroupTest6>();
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var group = comp.FindComponent<MudRadioGroup<string>>();
             var buttons = comp.FindAll("label > span").ToArray();
@@ -222,7 +218,6 @@ namespace MudBlazor.UnitTests.Components
         {
             var comp = Context.RenderComponent<RadioGroupTest1>();
             // print the generated html
-            //Console.WriteLine(comp.Markup);
             // select elements needed for the test
             var radio = comp.FindComponent<MudRadioGroup<string>>();
             radio.Instance.SelectedOption.Should().Be(null);
@@ -244,7 +239,7 @@ namespace MudBlazor.UnitTests.Components
             var radio = comp.FindComponent<MudRadio<string>>();
 
             await comp.InvokeAsync(() => radio.Instance.IMudRadioGroup = null);
-            await comp.InvokeAsync(() => radio.Instance.OnClick());
+            await comp.InvokeAsync(() => radio.Instance.OnClickAsync());
 #pragma warning disable BL0005
             await comp.InvokeAsync(() => radio.Instance.Disabled = true);
             comp.WaitForAssertion(() => group.Instance.SelectedOption.Should().Be(null));
@@ -265,6 +260,59 @@ namespace MudBlazor.UnitTests.Components
             {
                 Assert.AreEqual(ex.InnerException.GetType(), typeof(MudBlazor.Utilities.Exceptions.GenericTypeMismatchException));
             }
+        }
+
+        /// <summary>
+        /// Tests the Disabled property of the MudRadio
+        /// </summary>
+        [Test]
+        public void RadioDisabledTest()
+        {
+            var comp = Context.RenderComponent<RadioGroupExample>();
+            comp.Instance.SelectedOption.Should().BeNull();
+
+            var inputs = comp.FindAll("input");
+            inputs[2].Click(); //click enabled radio
+            comp.Instance.SelectedOption.Should().Be("Radio 3");
+            inputs[3].Click(); //click disable radio
+            comp.Instance.SelectedOption.Should().Be("Radio 3");
+
+            var labels = comp.FindAll("label");
+            labels[3].ClassList.Contains("mud-disabled").Should().BeTrue();
+        }
+
+        /// <summary>
+        /// Tests the Disabled property of the MudRadioGroup
+        /// </summary>
+        [Test]
+        public void RadioGroupDisabledTest()
+        {
+            var comp = Context.RenderComponent<RadioReadOnlyDisabledExample>();
+            var radioGroup = comp.FindComponents<MudRadioGroup<string>>()[1];
+
+            var radios = radioGroup.FindComponents<MudRadio<string>>();
+            radios.Count.Should().Be(4);
+            radioGroup.FindAll(".mud-radio.mud-disabled").Count.Should().Be(0);
+
+            comp.FindAll(".mud-switch-button > input")[1].Change(true);
+            radioGroup.FindAll(".mud-radio.mud-disabled").Count.Should().Be(4);
+        }
+
+        /// <summary>
+        /// Tests the Readonly property of the MudRadioGroup
+        /// </summary>
+        [Test]
+        public async Task RadioGroupReadOnlyTest()
+        {
+            var comp = Context.RenderComponent<RadioReadOnlyDisabledExample>();
+            var radioGroup = comp.FindComponents<MudRadioGroup<string>>()[0];
+
+            var radios = radioGroup.FindComponents<MudRadio<string>>();
+            radios.Count.Should().Be(4);
+            radioGroup.FindAll(".mud-radio.mud-readonly").Count.Should().Be(0);
+
+            comp.FindAll(".mud-switch-button > input")[0].Change(true);
+            radioGroup.FindAll(".mud-radio.mud-readonly").Count.Should().Be(4);
         }
     }
 }

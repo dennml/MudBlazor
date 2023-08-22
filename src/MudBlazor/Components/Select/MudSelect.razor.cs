@@ -163,6 +163,13 @@ namespace MudBlazor
         public string PopoverClass { get; set; }
 
         /// <summary>
+        /// User class names for the internal list, separated by space
+        /// </summary>
+        [Parameter]
+        [Category(CategoryTypes.FormComponent.ListAppearance)]
+        public string ListClass { get; set; }
+
+        /// <summary>
         /// If true, compact vertical padding will be applied to all Select items.
         /// </summary>
         [Parameter]
@@ -581,7 +588,7 @@ namespace MudBlazor
                 }
 
                 UpdateSelectAllChecked();
-                BeginValidate();
+                await BeginValidateAsync();
             }
             else
             {
@@ -663,7 +670,7 @@ namespace MudBlazor
 
         public async Task ToggleMenu()
         {
-            if (Disabled || ReadOnly)
+            if (GetDisabledState() || GetReadOnlyState())
                 return;
             if (_isOpen)
                 await CloseMenu(true);
@@ -673,7 +680,7 @@ namespace MudBlazor
 
         public async Task OpenMenu()
         {
-            if (Disabled || ReadOnly)
+            if (GetDisabledState() || GetReadOnlyState())
                 return;
             _isOpen = true;
             UpdateIcon();
@@ -703,7 +710,7 @@ namespace MudBlazor
             {
                 StateHasChanged();
                 await OnBlur.InvokeAsync(new FocusEventArgs());
-                _elementReference.FocusAsync().AndForget(TaskOption.Safe);
+                _elementReference.FocusAsync().AndForget(ignoreExceptions:true);
                 StateHasChanged();
             }
 
@@ -755,7 +762,7 @@ namespace MudBlazor
                     },
                 });
                 _keyInterceptor.KeyDown += HandleKeyDown;
-                _keyInterceptor.KeyUp += HandleKeyUp;    
+                _keyInterceptor.KeyUp += HandleKeyUp;
             }
 
             await base.OnAfterRenderAsync(firstRender);
@@ -796,7 +803,7 @@ namespace MudBlazor
             await SetValueAsync(default, false);
             await SetTextAsync(default, false);
             _selectedValues.Clear();
-            BeginValidate();
+            await BeginValidateAsync();
             StateHasChanged();
             await SelectedValuesChanged.InvokeAsync(_selectedValues);
             await OnClearButtonClick.InvokeAsync(e);
@@ -855,7 +862,7 @@ namespace MudBlazor
 
         internal async void HandleKeyDown(KeyboardEventArgs obj)
         {
-            if (Disabled || ReadOnly)
+            if (GetDisabledState() || GetReadOnlyState())
                 return;
             var key = obj.Key.ToLowerInvariant();
             if (_isOpen && key.Length == 1 && key != " " && !(obj.CtrlKey || obj.ShiftKey || obj.AltKey || obj.MetaKey))
@@ -978,7 +985,7 @@ namespace MudBlazor
             await SetValueAsync(default, false);
             await SetTextAsync(default, false);
             _selectedValues.Clear();
-            BeginValidate();
+            await BeginValidateAsync();
             StateHasChanged();
             await SelectedValuesChanged.InvokeAsync(_selectedValues);
         }
@@ -1017,7 +1024,7 @@ namespace MudBlazor
             }
             UpdateSelectAllChecked();
             _selectedValues = selectedValues; // need to force selected values because Blazor overwrites it under certain circumstances due to changes of Text or Value
-            BeginValidate();
+            await BeginValidateAsync();
             await SelectedValuesChanged.InvokeAsync(SelectedValues);
             if (MultiSelection && typeof(T) == typeof(string))
                 SetValueAsync((T)(object)Text, updateText: false).AndForget();
@@ -1037,15 +1044,19 @@ namespace MudBlazor
             _shadowLookup.Remove(item.Value);
         }
 
-        internal void OnLostFocus(FocusEventArgs obj)
+        private async Task OnFocusOutAsync(FocusEventArgs focusEventArgs)
         {
             if (_isOpen)
             {
                 // when the menu is open we immediately get back the focus if we lose it (i.e. because of checkboxes in multi-select)
                 // otherwise we can't receive key strokes any longer
-                _elementReference.FocusAsync().AndForget(TaskOption.Safe);
+                await FocusAsync();
             }
-            base.OnBlur.InvokeAsync(obj);
+        }
+
+        internal Task OnBlurAsync(FocusEventArgs obj)
+        {
+            return base.OnBlur.InvokeAsync(obj);
         }
 
         protected override void Dispose(bool disposing)
@@ -1059,7 +1070,10 @@ namespace MudBlazor
                     _keyInterceptor.KeyDown -= HandleKeyDown;
                     _keyInterceptor.KeyUp -= HandleKeyUp;
 
-                    _keyInterceptor.Dispose();
+                    if (IsJSRuntimeAvailable)
+                    {
+                        _keyInterceptor.Dispose();
+                    }
                 }
             }
         }
@@ -1073,9 +1087,23 @@ namespace MudBlazor
         protected override bool HasValue(T value)
         {
             if (MultiSelection)
-                return SelectedValues?.Count() > 0;
+                return SelectedValues?.Any() ?? false;
             else
                 return base.HasValue(value);
         }
+
+        public override async Task ForceUpdate()
+        {
+            await base.ForceUpdate();
+            if (MultiSelection == false)
+            {
+                SelectedValues = new HashSet<T>(_comparer) { Value };
+            }
+            else
+            {
+                await SelectedValuesChanged.InvokeAsync(new HashSet<T>(SelectedValues, _comparer));
+            }
+        }
+
     }
 }
